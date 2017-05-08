@@ -1,9 +1,9 @@
 # -*- coding: UTF-8 -*-
 # File: stats.py
-# Author: Yuxin Wu <ppwwyyxx@gmail.com>
+# Author: Xiaosong Wang <xswang82@gmail.com>
 import numpy as np
 
-__all__ = ['StatCounter', 'BinaryStatistics', 'RatioCounter', 'Accuracy',
+__all__ = ['StatCounter', 'BinaryStatistics', 'MultiLabelStatistics', 'RatioCounter', 'Accuracy',
            'OnlineMoments']
 
 
@@ -120,6 +120,77 @@ class BinaryStatistics(object):
         if self.nr_pred_pos == 0:
             return 0
         return self.corr_pos * 1. / self.nr_pred_pos
+
+    @property
+    def recall(self):
+        if self.nr_pos == 0:
+            return 0
+        return self.corr_pos * 1. / self.nr_pos
+
+    @property
+    def false_positive(self):
+        if self.nr_pred_pos == 0:
+            return 0
+        return 1 - self.precision
+
+    @property
+    def false_negative(self):
+        if self.nr_pos == 0:
+            return 0
+        return 1 - self.recall
+
+class MultiLabelStatistics(object):
+    """
+    Statistics for binary decision,
+    including precision, recall, false positive, false negative
+    """
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.nr_pos = 0  # positive label
+        self.nr_neg = 0  # negative label
+        self.nr_pred_pos = 0
+        self.nr_pred_neg = 0
+        self.corr_pos = 0   # correct predict positive
+        self.corr_neg = 0   # correct predict negative
+
+    def feed(self, pred, label):
+        """
+        Args:
+            pred (np.ndarray): binary array.
+            label (np.ndarray): binary array of the same size.
+        """
+        label = label[:, 1:16]
+        label[label == 2] = 0
+        pred[pred == 2] = 0
+        assert pred.shape == label.shape, "{} != {}".format(pred.shape, label.shape)
+        for i in range(label.shape[0]):
+            predset = list(set(pred[i, :]))
+            for jp in range(len(predset)):
+                if predset[jp] != 0 and predset[jp] in label[i, :]:
+                    self.corr_pos += 1
+
+
+        self.nr_pos += (label != 0).sum()
+        self.nr_neg += (label == 0).sum()
+        self.nr_pred_pos += (pred != 0).sum()
+        self.nr_pred_neg += (pred == 0).sum()
+        # self.corr_pos += ((pred != 0) & (pred == label)).sum()
+        self.corr_neg += ((pred == 0) & (pred == label)).sum()
+
+    @property
+    def precision(self):
+        if self.nr_pred_pos == 0:
+            return 0
+        return self.corr_pos * 1. / self.nr_pred_pos
+
+    @property
+    def specificity(self):
+        if self.nr_pred_neg == 0:
+            return 0
+        return self.corr_neg * 1. / self.nr_pred_neg
 
     @property
     def recall(self):
