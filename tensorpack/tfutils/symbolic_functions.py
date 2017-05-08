@@ -64,6 +64,21 @@ def class_balanced_cross_entropy(pred, label, name='cross_entropy_loss'):
     cost = tf.subtract(loss_pos, loss_neg, name=name)
     return cost
 
+def multilabel_class_balanced_sigmoid_cross_entropy(logits, label, name='multilabel_cross_entropy_loss'):
+    """
+    This function accepts logits rather than predictions, and is more numerically stable than
+    :func:`class_balanced_cross_entropy`.
+    """
+    y = tf.cast(label, tf.float32)
+
+    count_neg = tf.reduce_sum(1. - y)
+    count_pos = tf.reduce_sum(y)
+    beta = count_neg / (count_neg + count_pos)
+
+    pos_weight = beta / (1 - beta)
+    cost = tf.nn.weighted_cross_entropy_with_logits(logits=logits, targets=y, pos_weight=pos_weight)
+    cost = tf.reduce_mean(cost * (1 - beta))
+    return tf.where(tf.equal(count_pos, 0.0), 0.0, cost, name=name)
 
 def class_balanced_sigmoid_cross_entropy(logits, label, name='cross_entropy_loss'):
     """
